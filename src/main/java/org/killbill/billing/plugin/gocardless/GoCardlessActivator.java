@@ -15,14 +15,16 @@
  */
 package org.killbill.billing.plugin.gocardless;
 
-import java.util.Hashtable;
-
 import org.killbill.billing.osgi.api.OSGIPluginProperties;
 import org.killbill.billing.osgi.libs.killbill.KillbillActivatorBase;
 import org.killbill.billing.payment.plugin.api.PaymentPluginApi;
-
+import org.killbill.billing.plugin.core.resources.jooby.PluginApp;
+import org.killbill.billing.plugin.core.resources.jooby.PluginAppBuilder;
 import org.osgi.framework.BundleContext;
 
+import javax.servlet.Servlet;
+import javax.servlet.http.HttpServlet;
+import java.util.Hashtable;
 
 public class GoCardlessActivator extends KillbillActivatorBase{
 	
@@ -33,11 +35,26 @@ public class GoCardlessActivator extends KillbillActivatorBase{
         super.start(context);
         final GoCardlessPaymentPluginApi pluginApi = new GoCardlessPaymentPluginApi(killbillAPI,clock.getClock());
         registerPaymentPluginApi(context, pluginApi);
+
+        // Register the servlet, which is used as the entry point to generate the Hosted Payment Pages redirect url
+        final PluginApp pluginApp = new PluginAppBuilder(PLUGIN_NAME, killbillAPI, dataSource, super.clock, configProperties)
+                .withRouteClass(GoCardlessCheckoutServlet.class)
+                .withService(pluginApi)
+                .withService(clock)
+                .build();
+        final HttpServlet stripeServlet = PluginApp.createServlet(pluginApp);
+        registerServlet(context, stripeServlet);
     }
 	
     private void registerPaymentPluginApi(final BundleContext context, final PaymentPluginApi api) {
         final Hashtable<String, String> props = new Hashtable<String, String>();
         props.put(OSGIPluginProperties.PLUGIN_NAME_PROP, PLUGIN_NAME);
         registrar.registerService(context, PaymentPluginApi.class, api, props);
+    }
+
+    private void registerServlet(final BundleContext context, final HttpServlet servlet) {
+        final Hashtable<String, String> props = new Hashtable<String, String>();
+        props.put(OSGIPluginProperties.PLUGIN_NAME_PROP, PLUGIN_NAME);
+        registrar.registerService(context, Servlet.class, servlet, props);
     }
 }
