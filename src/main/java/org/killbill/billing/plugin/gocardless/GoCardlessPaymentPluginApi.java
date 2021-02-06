@@ -39,6 +39,7 @@ import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.api.payment.PluginHostedPaymentPageFormDescriptor;
 import org.killbill.billing.plugin.api.payment.PluginPaymentPluginApi;
 import org.killbill.billing.plugin.api.payment.PluginPaymentTransactionInfoPlugin;
+import org.killbill.billing.plugin.util.KillBillMoney;
 import org.killbill.billing.util.api.CustomFieldApiException;
 import org.killbill.billing.util.callcontext.CallContext;
 import org.killbill.billing.util.callcontext.TenantContext;
@@ -107,7 +108,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 				com.gocardless.services.PaymentService.PaymentCreateRequest.Currency goCardlessCurrency = convertKillBillCurrencyToGoCardlessCurrency(
 						currency);
 
-				Payment payment = client.payments().create().withAmount(amount.intValue())
+				Payment payment = client.payments().create().withAmount(Math.toIntExact(KillBillMoney.toMinorUnits(currency.toString(), amount)))
 						.withCurrency(goCardlessCurrency).withLinksMandate(mandate).withIdempotencyKey(idempotencyKey)
 						.execute();
 				
