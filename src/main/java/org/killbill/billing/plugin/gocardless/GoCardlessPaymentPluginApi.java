@@ -255,16 +255,18 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 		Iterable<Payment> payments = client.payments().all().withCustomer(customerId).execute(); //get all payments related to customer
 		
 		for (Payment payment : payments) {
-			String kbPaymentIdFromPayment = payment.getMetadata().get("kbPaymentId"); //get kbPaymentId from metatadata in payment
+			String kbPaymentIdFromPayment = payment.getMetadata().get("kbPaymentId"); //get kbPaymentId from metadata in payment
 			logger.info("kbPaymentIdFromPayment="+kbPaymentIdFromPayment);
-			if(kbPaymentId.toString().equals(kbPaymentIdFromPayment)) {
+			if(kbPaymentIdFromPayment != null && kbPaymentId.toString().equals(kbPaymentIdFromPayment)) {
 				logger.info("Found matching payment");
 				Currency killBillCurrency = convertGoCardlessCurrencyToKillBillCurrency(payment.getCurrency());
 				logger.info("payment_status="+payment.getStatus());
 				PaymentPluginStatus status = convertGoCardlessToKillBillStatus(payment.getStatus());
-				String kbTransactionPaymentId = payment.getMetadata().get("kbTransationId"); 
+				String kbTransactionPaymentIdStr = payment.getMetadata().get("kbTransactionId"); 
+				UUID kbTransactionPaymentId = kbTransactionPaymentIdStr !=null?UUID.fromString(kbTransactionPaymentIdStr):null;
+				logger.info("kbTransactionPaymentId="+kbTransactionPaymentId);
 				GoCardlessPaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
-						kbPaymentId, UUID.fromString(kbTransactionPaymentId), TransactionType.PURCHASE, new BigDecimal(payment.getAmount()), killBillCurrency,
+						kbPaymentId, kbTransactionPaymentId, TransactionType.PURCHASE, new BigDecimal(payment.getAmount()), killBillCurrency,
 						status, null, null, String.valueOf(payment.getId()), null, new DateTime(),
 						new DateTime(payment.getCreatedAt()), null); // TODO: passing null for output properties
 				paymentTransactionInfoPluginList.add(paymentTransactionInfoPlugin);
