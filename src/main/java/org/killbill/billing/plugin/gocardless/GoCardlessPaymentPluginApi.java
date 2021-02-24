@@ -265,10 +265,11 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 				String kbTransactionPaymentIdStr = payment.getMetadata().get("kbTransactionId"); 
 				UUID kbTransactionPaymentId = kbTransactionPaymentIdStr !=null?UUID.fromString(kbTransactionPaymentIdStr):null;
 				logger.info("kbTransactionPaymentId="+kbTransactionPaymentId);
+				List<PluginProperty> outputProperties = new ArrayList<PluginProperty>();// TODO: passing empty output properties
 				GoCardlessPaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
 						kbPaymentId, kbTransactionPaymentId, TransactionType.PURCHASE, new BigDecimal(payment.getAmount()), killBillCurrency,
 						status, null, null, String.valueOf(payment.getId()), null, new DateTime(),
-						new DateTime(payment.getCreatedAt()), null); // TODO: passing null for output properties
+						new DateTime(payment.getCreatedAt()), outputProperties); 
 				paymentTransactionInfoPluginList.add(paymentTransactionInfoPlugin);
 			}
 		}
