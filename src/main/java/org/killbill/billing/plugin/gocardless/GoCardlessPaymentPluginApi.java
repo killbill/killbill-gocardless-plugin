@@ -51,10 +51,13 @@ import org.slf4j.LoggerFactory;
 
 import com.gocardless.GoCardlessClient;
 import com.gocardless.errors.GoCardlessApiException;
+import com.gocardless.resources.Mandate;
 import com.gocardless.resources.Payment;
 import com.gocardless.resources.RedirectFlow;
 import com.gocardless.services.RedirectFlowService.RedirectFlowCreateRequest.PrefilledCustomer;
 import com.google.common.collect.ImmutableList;
+import com.google.gson.annotations.SerializedName;
+
 import org.killbill.billing.plugin.api.core.PluginCustomField;
 import org.killbill.billing.ObjectType;
 
@@ -65,21 +68,20 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	private Clock clock;
 	private static String GC_ACCESS_TOKEN_PROPERTY = "GC_ACCESS_TOKEN";
 
-	
 	private GoCardlessClient client;
 
-	public GoCardlessPaymentPluginApi(final OSGIKillbillAPI killbillAPI,final Clock clock) { 
+	public GoCardlessPaymentPluginApi(final OSGIKillbillAPI killbillAPI, final Clock clock) {
 		this.killbillAPI = killbillAPI;
 		this.clock = clock;
-		client = GoCardlessClient.newBuilder(System.getenv(GC_ACCESS_TOKEN_PROPERTY)).withEnvironment(GoCardlessClient.Environment.SANDBOX).build();//"sandbox_FXxlnWbKEleVIIxZ9kS218BgtQBJMscKKNB5b8-S";
+		client = GoCardlessClient.newBuilder(System.getenv(GC_ACCESS_TOKEN_PROPERTY))
+				.withEnvironment(GoCardlessClient.Environment.SANDBOX).build();// "sandbox_FXxlnWbKEleVIIxZ9kS218BgtQBJMscKKNB5b8-S";
 	}
-
 
 	@Override
 	public PaymentTransactionInfoPlugin authorizePayment(UUID kbAccountId, UUID kbPaymentId, UUID kbTransactionId,
 			UUID kbPaymentMethodId, BigDecimal amount, Currency currency, Iterable<PluginProperty> properties,
 			CallContext context) throws PaymentPluginApiException {
-		
+
 		return null;
 	}
 
@@ -94,54 +96,52 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	public PaymentTransactionInfoPlugin purchasePayment(UUID kbAccountId, UUID kbPaymentId, UUID kbTransactionId,
 			UUID kbPaymentMethodId, BigDecimal amount, Currency currency, Iterable<PluginProperty> properties,
 			CallContext context) throws PaymentPluginApiException {
-
 		logger.info("purchasePayment, kbAccountId=" + kbAccountId);
-		
-		PaymentTransactionInfoPlugin paymentTransactionInfoPlugin; 
-		String mandate = getMandateId(kbAccountId, context); // "MD000E3P8D8SNS";
-		logger.info("MandateId:", mandate);
+		PaymentTransactionInfoPlugin paymentTransactionInfoPlugin;
+		String mandate = getMandateId(kbAccountId, context); // retrieve mandateId from Kill Bill tables
+		logger.info("MandateId="+mandate);
 		if (mandate != null) {
 			logger.info("Processing payment");
 			try {
-				String idempotencyKey = PluginProperties.findPluginPropertyValue("idempotencykey", properties); // "random_payment_specific_string";
-
+				String idempotencyKey = PluginProperties.findPluginPropertyValue("idempotencykey", properties);
 				com.gocardless.services.PaymentService.PaymentCreateRequest.Currency goCardlessCurrency = convertKillBillCurrencyToGoCardlessCurrency(
 						currency);
-
-				Payment payment = client.payments().create().withAmount(Math.toIntExact(KillBillMoney.toMinorUnits(currency.toString(), amount)))
+				Payment payment = client.payments().create()
+						.withAmount(Math.toIntExact(KillBillMoney.toMinorUnits(currency.toString(), amount)))
 						.withCurrency(goCardlessCurrency).withLinksMandate(mandate).withIdempotencyKey(idempotencyKey)
+						.withMetadata("kbPaymentId", kbPaymentId.toString()).withMetadata("kbTransactionId", kbTransactionId.toString()) //added for getPaymentInfo
 						.execute();
-				
 				List<PluginProperty> outputProperties = new ArrayList<PluginProperty>();
 				outputProperties.add(new PluginProperty("paymentId", payment.getId(), false));
-				
-				paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
-						kbPaymentId, kbTransactionId, TransactionType.PURCHASE, amount, currency, PaymentPluginStatus.PROCESSED, null,
-						null, String.valueOf(payment.getId()), null, new DateTime(), new DateTime(payment.getCreatedAt()), outputProperties);
-				
-				logger.info("Payment processed, PaymentId:", payment.getId());
-				
-
+				paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(kbPaymentId, kbTransactionId,
+						TransactionType.PURCHASE, amount, currency, PaymentPluginStatus.PROCESSED, null, null,
+						String.valueOf(payment.getId()), null, new DateTime(), new DateTime(payment.getCreatedAt()),
+						outputProperties);
+				logger.info("Payment processed, PaymentId="+payment.getId());
 			} catch (GoCardlessApiException e) {
-
-				paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
-						kbPaymentId, kbTransactionId, TransactionType.PURCHASE, amount, currency,  PaymentPluginStatus.ERROR, e.getErrorMessage(),
+				paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(kbPaymentId, kbTransactionId,
+						TransactionType.PURCHASE, amount, currency, PaymentPluginStatus.ERROR, e.getErrorMessage(),
 						String.valueOf(e.getCode()), null, null, new DateTime(), null, null);
-				
+
 				logger.warn("Error occured in purchasePayment", e.getType(), e);
 			}
-		}
-		else {
+		} else {
 			logger.warn("Unable to fetch mandate, so cannot process payment");
-			paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
-					kbPaymentId, kbTransactionId, TransactionType.PURCHASE, amount, currency, PaymentPluginStatus.CANCELED, null, //TODO: Is Canceled status correct here?
+			paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(kbPaymentId, kbTransactionId,
+					TransactionType.PURCHASE, amount, currency, PaymentPluginStatus.CANCELED, null, 
 					null, null, null, new DateTime(), null, null);
 		}
-
 		return paymentTransactionInfoPlugin;
 	}
 
-	private String getMandateId(UUID kbAccountId, CallContext context) {
+	/**
+	 * Retrieves mandateId from Kill Bill tables
+	 * 
+	 * @param kbAccountId
+	 * @param context
+	 * @return
+	 */
+	private String getMandateId(UUID kbAccountId, TenantContext context) {
 		final List<CustomField> customFields = killbillAPI.getCustomFieldUserApi()
 				.getCustomFieldsForAccountType(kbAccountId, ObjectType.ACCOUNT, context);
 		String mandateId = null;
@@ -156,7 +156,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	}
 
 	/**
-	 * TODO: See if there is a better way to do this
+	 * Converts Kill Bill currency to GoCardless currency
 	 * 
 	 * @param currency
 	 * @return
@@ -187,17 +187,50 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 		}
 	}
 
+	/**
+	 * Converts GoCardless currency to Kill Bill currency
+	 * 
+	 * @param currency
+	 * @return
+	 */
+	private Currency convertGoCardlessCurrencyToKillBillCurrency(com.gocardless.resources.Payment.Currency currency) {
+
+		switch (currency) {
+		case USD:
+			return Currency.USD;
+		case AUD:
+			return Currency.AUD;
+		case CAD:
+			return Currency.CAD;
+		case DKK:
+			return Currency.DKK;
+		case EUR:
+			return Currency.EUR;
+		case GBP:
+			return Currency.GBP;
+		case NZD:
+			return Currency.NZD;
+		case SEK:
+			return Currency.SEK;
+		default:
+			return null;
+
+		}
+	}
+
 	@Override
 	public PaymentTransactionInfoPlugin voidPayment(UUID kbAccountId, UUID kbPaymentId, UUID kbTransactionId,
 			UUID kbPaymentMethodId, Iterable<PluginProperty> properties, CallContext context)
 			throws PaymentPluginApiException {
 		return null;
+
 	}
 
 	@Override
 	public PaymentTransactionInfoPlugin creditPayment(UUID kbAccountId, UUID kbPaymentId, UUID kbTransactionId,
 			UUID kbPaymentMethodId, BigDecimal amount, Currency currency, Iterable<PluginProperty> properties,
 			CallContext context) throws PaymentPluginApiException {
+
 		return null;
 	}
 
@@ -210,7 +243,61 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 
 	public List<PaymentTransactionInfoPlugin> getPaymentInfo(UUID kbAccountId, UUID kbPaymentId,
 			Iterable<PluginProperty> properties, TenantContext context) throws PaymentPluginApiException {
-		return null;
+		
+		logger.info("getPaymentInfo");
+		List<PaymentTransactionInfoPlugin> paymentTransactionInfoPluginList = new ArrayList<>();
+		String mandateId = getMandateId(kbAccountId, context) ;
+		logger.info("Mandate="+mandateId);
+		Mandate mandate = client.mandates().get(mandateId).execute(); //get GoCardless Mandate object
+		String customerId = mandate.getLinks().getCustomer(); //retrieve customer id from mandate
+		logger.info("CustomerId="+customerId);
+		
+		Iterable<Payment> payments = client.payments().all().withCustomer(customerId).execute(); //get all payments related to customer
+		
+		for (Payment payment : payments) {
+			String kbPaymentIdFromPayment = payment.getMetadata().get("kbPaymentId"); //get kbPaymentId from metatadata in payment
+			logger.info("kbPaymentIdFromPayment="+kbPaymentIdFromPayment);
+			if(kbPaymentId.toString().equals(kbPaymentIdFromPayment)) {
+				logger.info("Found matching payment");
+				Currency killBillCurrency = convertGoCardlessCurrencyToKillBillCurrency(payment.getCurrency());
+				logger.info("payment_status="+payment.getStatus());
+				PaymentPluginStatus status = convertGoCardlessToKillBillStatus(payment.getStatus());
+				GoCardlessPaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
+						kbPaymentId, null, TransactionType.PURCHASE, new BigDecimal(payment.getAmount()), killBillCurrency,
+						status, null, null, String.valueOf(payment.getId()), null, new DateTime(),
+						new DateTime(payment.getCreatedAt()), null); // TODO: passing null for output properties and kbTransactionId
+				paymentTransactionInfoPluginList.add(paymentTransactionInfoPlugin);
+			}
+		}
+		
+		return paymentTransactionInfoPluginList;
+	}
+
+	/**
+	 * Converts GoCardless status to Kill Bill status
+	 * TODO: confirm if the status is correct
+	 * @param status
+	 * @return
+	 */
+	private PaymentPluginStatus convertGoCardlessToKillBillStatus(Payment.Status status) {
+		switch (status) {
+		case PENDING_CUSTOMER_APPROVAL://waiting for the customer to approve this payment
+		case PENDING_SUBMISSION: //the payment has been created, but not yet submitted to the banks TODO: Should this be translated to PaymentPluginStatus.PROCESSED? 
+		case SUBMITTED: //the payment has been submitted to the banks TODO: Should this be translated to PaymentPluginStatus.PROCESSED?
+			return PaymentPluginStatus.PENDING; 
+		case CONFIRMED: //the payment has been confirmed as collected
+		case PAID_OUT: // the payment has been included in a payout
+			return PaymentPluginStatus.PROCESSED; 
+		case CANCELLED: //the payment has been cancelled TODO: Should this be translated to PaymentPluginStatus.ERROR?
+		case CUSTOMER_APPROVAL_DENIED: //the customer has denied approval for the payment TODO: Should this be translated to PaymentPluginStatus.ERROR?
+			return PaymentPluginStatus.CANCELED;
+		case FAILED: // the payment failed to be processed. 
+			return PaymentPluginStatus.ERROR;
+		case CHARGED_BACK: // the payment has been charged back TODO: Should this be translated to PaymentPluginStatus.ERROR?
+			return PaymentPluginStatus.PROCESSED;
+		default:
+			return PaymentPluginStatus.UNDEFINED;
+		}
 	}
 
 	@Override
@@ -226,27 +313,25 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 		logger.info("addPaymentMethod, kbAccountId=" + kbAccountId);
 		final Iterable<PluginProperty> allProperties = PluginProperties.merge(paymentMethodProps.getProperties(),
 				properties);
-		String redirectFlowId = PluginProperties.findPluginPropertyValue("redirect_flow_id", allProperties); // "RE000341840PVZQ3X0EVB82BR54QZAQN"
-		String sessionToken = PluginProperties.findPluginPropertyValue("session_token", allProperties); // "dummy_session_token"
+		String redirectFlowId = PluginProperties.findPluginPropertyValue("redirect_flow_id", allProperties); // retrieve the redirect flow id
+		String sessionToken = PluginProperties.findPluginPropertyValue("session_token", allProperties);
 
 		try {
-			RedirectFlow redirectFlow = client.redirectFlows().complete(redirectFlowId).withSessionToken(sessionToken).execute();
+			// Use the redirect flow id to "complete" the GoCardless flow
+			RedirectFlow redirectFlow = client.redirectFlows().complete(redirectFlowId).withSessionToken(sessionToken)
+					.execute();
 
-			String mandateId = redirectFlow.getLinks().getMandate();
-			logger.info("MandateId:", mandateId);
+			String mandateId = redirectFlow.getLinks().getMandate(); // obtain mandate id from the redirect flow
+			logger.info("MandateId=" + mandateId);
 
 			try {
+				// save Mandate id in the Kill Bill database
 				killbillAPI.getCustomFieldUserApi().addCustomFields(ImmutableList.of(new PluginCustomField(kbAccountId,
 						ObjectType.ACCOUNT, "GOCARDLESS_MANDATE_ID", mandateId, clock.getUTCNow())), context);
 			} catch (CustomFieldApiException e) {
 				logger.warn("Error occured while saving mandate id", e);
 				throw new PaymentPluginApiException("Error occured while saving mandate id", e);
 			}
-
-			// Display a confirmation page to your customer, telling them their Direct Debit
-			// has been set up. You could build your own, or use ours, which shows all the
-			// relevant information and is translated into all the languages we support.
-			System.out.println(redirectFlow.getConfirmationUrl()); // TODO: How to send this to the client application?
 
 		} catch (GoCardlessApiException e) {
 			logger.warn("Error occured while completing the GoCardless flow", e.getType(), e);
@@ -295,17 +380,18 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 		logger.info("buildFormDescriptor, kbAccountId=" + kbAccountId);
 
 		// retrieve properties
-		String successRedirectUrl = PluginProperties.findPluginPropertyValue("success_redirect_url", properties); // "https://developer.gocardless.com/example-redirect-uri/"; - this is the URL to which GoCardless will redirect after users set up the  mandate
-		String redirectFlowDescription = PluginProperties.findPluginPropertyValue("redirect_flow_description",properties); 
+		String successRedirectUrl = PluginProperties.findPluginPropertyValue("success_redirect_url", properties); // "https://developer.gocardless.com/example-redirect-uri/"; this is the URL to which GoCardless redirects to after users set up the mandate
+																													
+		String redirectFlowDescription = PluginProperties.findPluginPropertyValue("redirect_flow_description",properties);
 		String sessionToken = PluginProperties.findPluginPropertyValue("session_token", properties); // "dummy_session_token"
 
 		PrefilledCustomer customer = buildCustomer(customFields);// build a PrefilledCuctomer object from custom fields if present
 
 		RedirectFlow redirectFlow = client.redirectFlows().create().withDescription(redirectFlowDescription)
-				.withSessionToken(sessionToken) 
-				.withSuccessRedirectUrl(successRedirectUrl).withPrefilledCustomer(customer).execute();
-		logger.info("RedirectFlow Id", redirectFlow.getId());
-		logger.info("RedirectFlow URL", redirectFlow.getRedirectUrl());
+				.withSessionToken(sessionToken).withSuccessRedirectUrl(successRedirectUrl)
+				.withPrefilledCustomer(customer).execute();
+		logger.info("RedirectFlow Id=" + redirectFlow.getId());
+		logger.info("RedirectFlow URL=" + redirectFlow.getRedirectUrl());
 
 		PluginHostedPaymentPageFormDescriptor pluginHostedPaymentPageFormDescriptor = new PluginHostedPaymentPageFormDescriptor(
 				kbAccountId, redirectFlow.getRedirectUrl());
