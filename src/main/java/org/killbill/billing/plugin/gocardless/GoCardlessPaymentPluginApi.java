@@ -262,10 +262,11 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 				Currency killBillCurrency = convertGoCardlessCurrencyToKillBillCurrency(payment.getCurrency());
 				logger.info("payment_status="+payment.getStatus());
 				PaymentPluginStatus status = convertGoCardlessToKillBillStatus(payment.getStatus());
+				String kbTransactionPaymentId = payment.getMetadata().get("kbTransationId"); 
 				GoCardlessPaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
-						kbPaymentId, null, TransactionType.PURCHASE, new BigDecimal(payment.getAmount()), killBillCurrency,
+						kbPaymentId, UUID.fromString(kbTransactionPaymentId), TransactionType.PURCHASE, new BigDecimal(payment.getAmount()), killBillCurrency,
 						status, null, null, String.valueOf(payment.getId()), null, new DateTime(),
-						new DateTime(payment.getCreatedAt()), null); // TODO: passing null for output properties and kbTransactionId
+						new DateTime(payment.getCreatedAt()), null); // TODO: passing null for output properties
 				paymentTransactionInfoPluginList.add(paymentTransactionInfoPlugin);
 			}
 		}
