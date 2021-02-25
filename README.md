@@ -83,3 +83,12 @@ curl -v \
      --data-binary '{"transactionType":"PURCHASE","amount":"10"}' \
     'http://127.0.0.1:8080/1.0/kb/accounts/<ACCOUNT_ID>/payments'
 ```
+
+5. You can then obtain information about the payment as follows:
+```
+curl -v \
+     -u admin:password \
+     -H "X-Killbill-ApiKey: bob" \
+     -H "X-Killbill-ApiSecret: lazar" \
+    'http://127.0.0.1:8080/1.0/kb/payments/<PAYMENT_ID>?withPluginInfo=true'
+```

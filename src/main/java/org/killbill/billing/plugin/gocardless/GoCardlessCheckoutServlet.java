@@ -31,6 +31,8 @@ import org.killbill.billing.payment.plugin.api.PaymentPluginApiException;
 import org.killbill.billing.plugin.api.PluginCallContext;
 import org.killbill.billing.tenant.api.Tenant;
 import org.killbill.billing.util.callcontext.CallContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Named;
 import javax.inject.Singleton;
@@ -44,6 +46,7 @@ public class GoCardlessCheckoutServlet {
 
     private final OSGIKillbillClock clock;
     private final GoCardlessPaymentPluginApi goCardlessPaymentPluginApi;
+    private static final Logger logger = LoggerFactory.getLogger(GoCardlessCheckoutServlet.class);
 
     @Inject
     public GoCardlessCheckoutServlet(final OSGIKillbillClock clock,
@@ -59,6 +62,7 @@ public class GoCardlessCheckoutServlet {
                                 @Named("redirect_flow_description") final Optional<String> description,
                                 @Named("lineItemName") final Optional<String> token,
                                 @Local @Named("killbill_tenant") final Tenant tenant) throws PaymentPluginApiException {
+    	logger.info("Inside createSession");
         final CallContext context = new PluginCallContext(GoCardlessActivator.PLUGIN_NAME, clock.getClock().getUTCNow(), kbAccountId, tenant.getId());
         final ImmutableList<PluginProperty> properties = ImmutableList.of(
                 new PluginProperty("success_redirect_url", successUrl.orElse("https://developer.gocardless.com/example-redirect-uri/"), false),
