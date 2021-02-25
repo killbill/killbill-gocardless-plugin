@@ -268,6 +268,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 				List<PluginProperty> outputProperties = new ArrayList<PluginProperty>();
 				outputProperties.add(new PluginProperty("mandateId",mandateId,false)); //arbitrary data to be returned to the caller
 				outputProperties.add(new PluginProperty("customerId",customerId,false));  //arbitrary data to be returned to the caller
+				outputProperties.add(new PluginProperty("gocardlessstatus",payment.getStatus(),false)); //arbitrary data to be returned to the caller
 				GoCardlessPaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
 						kbPaymentId, kbTransactionPaymentId, TransactionType.PURCHASE, new BigDecimal(payment.getAmount()), killBillCurrency,
 						status, null, null, String.valueOf(payment.getId()), null, new DateTime(),
