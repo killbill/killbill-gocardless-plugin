@@ -92,3 +92,12 @@ curl -v \
      -H "X-Killbill-ApiSecret: lazar" \
     'http://127.0.0.1:8080/1.0/kb/payments/<PAYMENT_ID>?withPluginInfo=true'
 ```
+
+6. If you do not want the plugin to be called, you can specify `withPluginInfo=false` as follows:
+```
+curl -v \
+     -u admin:password \
+     -H "X-Killbill-ApiKey: bob" \
+     -H "X-Killbill-ApiSecret: lazar" \
+    'http://127.0.0.1:8080/1.0/kb/payments/<PAYMENT_ID>?withPluginInfo=false'
+```
