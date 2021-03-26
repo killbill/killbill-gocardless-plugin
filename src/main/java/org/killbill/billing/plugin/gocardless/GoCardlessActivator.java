@@ -28,7 +28,8 @@ import java.util.Hashtable;
 
 public class GoCardlessActivator extends KillbillActivatorBase{
 	
-	public static final String PLUGIN_NAME = "killbill-gocardless";
+	//This is the plugin name and is used by Kill Bill to route payment to the appropriate payment plugin
+	public static final String PLUGIN_NAME = "killbill-gocardless"; 
 
 	@Override
     public void start(final BundleContext context) throws Exception {
@@ -42,8 +43,8 @@ public class GoCardlessActivator extends KillbillActivatorBase{
                 .withService(pluginApi)
                 .withService(clock)
                 .build();
-        final HttpServlet stripeServlet = PluginApp.createServlet(pluginApp);
-        registerServlet(context, stripeServlet);
+        final HttpServlet goCardlessServlet = PluginApp.createServlet(pluginApp);
+        registerServlet(context, goCardlessServlet);
     }
 	
     private void registerPaymentPluginApi(final BundleContext context, final PaymentPluginApi api) {

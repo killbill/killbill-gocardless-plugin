@@ -74,7 +74,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 		this.killbillAPI = killbillAPI;
 		this.clock = clock;
 		client = GoCardlessClient.newBuilder(System.getenv(GC_ACCESS_TOKEN_PROPERTY))
-				.withEnvironment(GoCardlessClient.Environment.SANDBOX).build();// "sandbox_FXxlnWbKEleVIIxZ9kS218BgtQBJMscKKNB5b8-S";
+				.withEnvironment(GoCardlessClient.Environment.SANDBOX).build();
 	}
 
 	@Override
