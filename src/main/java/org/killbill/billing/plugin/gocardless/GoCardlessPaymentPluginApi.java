@@ -81,15 +81,20 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	public PaymentTransactionInfoPlugin authorizePayment(UUID kbAccountId, UUID kbPaymentId, UUID kbTransactionId,
 			UUID kbPaymentMethodId, BigDecimal amount, Currency currency, Iterable<PluginProperty> properties,
 			CallContext context) throws PaymentPluginApiException {
-
-		return null;
+		PaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(kbPaymentId, kbTransactionId,
+				TransactionType.AUTHORIZE, amount, currency, PaymentPluginStatus.CANCELED, null, 
+				null, null, null, new DateTime(), null, null);
+		return paymentTransactionInfoPlugin;
 	}
 
 	@Override
 	public PaymentTransactionInfoPlugin capturePayment(UUID kbAccountId, UUID kbPaymentId, UUID kbTransactionId,
 			UUID kbPaymentMethodId, BigDecimal amount, Currency currency, Iterable<PluginProperty> properties,
 			CallContext context) throws PaymentPluginApiException {
-		return null;
+		PaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(kbPaymentId, kbTransactionId,
+				TransactionType.CAPTURE, amount, currency, PaymentPluginStatus.CANCELED, null, 
+				null, null, null, new DateTime(), null, null);
+		return paymentTransactionInfoPlugin;
 	}
 
 	@Override
@@ -222,7 +227,10 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	public PaymentTransactionInfoPlugin voidPayment(UUID kbAccountId, UUID kbPaymentId, UUID kbTransactionId,
 			UUID kbPaymentMethodId, Iterable<PluginProperty> properties, CallContext context)
 			throws PaymentPluginApiException {
-		return null;
+		PaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(kbPaymentId, kbTransactionId,
+				TransactionType.VOID, null, null, PaymentPluginStatus.CANCELED, null, 
+				null, null, null, new DateTime(), null, null);
+		return paymentTransactionInfoPlugin;
 
 	}
 
@@ -231,14 +239,20 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 			UUID kbPaymentMethodId, BigDecimal amount, Currency currency, Iterable<PluginProperty> properties,
 			CallContext context) throws PaymentPluginApiException {
 
-		return null;
+		PaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(kbPaymentId, kbTransactionId,
+				TransactionType.CREDIT, amount, currency, PaymentPluginStatus.CANCELED, null, 
+				null, null, null, new DateTime(), null, null);
+		return paymentTransactionInfoPlugin;
 	}
 
 	@Override
 	public PaymentTransactionInfoPlugin refundPayment(UUID kbAccountId, UUID kbPaymentId, UUID kbTransactionId,
 			UUID kbPaymentMethodId, BigDecimal amount, Currency currency, Iterable<PluginProperty> properties,
 			CallContext context) throws PaymentPluginApiException {
-		return null;
+		PaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(kbPaymentId, kbTransactionId,
+				TransactionType.REFUND, amount, currency, PaymentPluginStatus.CANCELED, null, 
+				null, null, null, new DateTime(), null, null);
+		return paymentTransactionInfoPlugin;
 	}
 
 	public List<PaymentTransactionInfoPlugin> getPaymentInfo(UUID kbAccountId, UUID kbPaymentId,
@@ -310,7 +324,8 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	@Override
 	public Pagination<PaymentTransactionInfoPlugin> searchPayments(String searchKey, Long offset, Long limit,
 			Iterable<PluginProperty> properties, TenantContext context) throws PaymentPluginApiException {
-		return null;
+		
+		 throw new PaymentPluginApiException(null, "SEARCH: unsupported operation"); //TODO: Causes NullPointerException, to be fixed later
 	}
 
 	@Override
@@ -356,7 +371,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	@Override
 	public PaymentMethodPlugin getPaymentMethodDetail(UUID kbAccountId, UUID kbPaymentMethodId,
 			Iterable<PluginProperty> properties, TenantContext context) throws PaymentPluginApiException {
-		return null;
+		return new GoCardlessPaymentMethodPlugin(kbPaymentMethodId, null,false, null);
 	}
 
 	@Override
@@ -367,13 +382,15 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	@Override
 	public List<PaymentMethodInfoPlugin> getPaymentMethods(UUID kbAccountId, boolean refreshFromGateway,
 			Iterable<PluginProperty> properties, CallContext context) throws PaymentPluginApiException {
-		return null;
+		
+		List<PaymentMethodInfoPlugin> result = new ArrayList<PaymentMethodInfoPlugin>();
+		return result;
 	}
 
 	@Override
 	public Pagination<PaymentMethodPlugin> searchPaymentMethods(String searchKey, Long offset, Long limit,
 			Iterable<PluginProperty> properties, TenantContext context) throws PaymentPluginApiException {
-		return null;
+		throw new PaymentPluginApiException(null, "SEARCH: unsupported operation");//TODO: Causes NullPointerException, to be fixed later
 	}
 
 	@Override
@@ -421,7 +438,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	@Override
 	public GatewayNotification processNotification(String notification, Iterable<PluginProperty> properties,
 			CallContext context) throws PaymentPluginApiException {
-		return null;
+		throw new PaymentPluginApiException("INTERNAL", "#processNotification not yet implemented, please contact support@killbill.io");
 	}
 
 }
