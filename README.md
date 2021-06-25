@@ -1,6 +1,12 @@
 # killbill-gocardless-example-plugin
 GoCardless Payment Plugin (tutorial)
 
+## Build
+
+```
+​mvn clean install -DskipTests
+```
+
 ## Installation
 
 ```
