@@ -21,9 +21,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.joda.time.DateTime;
-import org.jooq.UpdatableRecord;
 import org.killbill.billing.catalog.api.Currency;
-import org.killbill.billing.osgi.libs.killbill.OSGIConfigPropertiesService;
 import org.killbill.billing.osgi.libs.killbill.OSGIKillbillAPI;
 import org.killbill.billing.payment.api.PaymentMethodPlugin;
 import org.killbill.billing.payment.api.PluginProperty;
@@ -37,8 +35,6 @@ import org.killbill.billing.payment.plugin.api.PaymentPluginStatus;
 import org.killbill.billing.payment.plugin.api.PaymentTransactionInfoPlugin;
 import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.api.payment.PluginHostedPaymentPageFormDescriptor;
-import org.killbill.billing.plugin.api.payment.PluginPaymentPluginApi;
-import org.killbill.billing.plugin.api.payment.PluginPaymentTransactionInfoPlugin;
 import org.killbill.billing.plugin.util.KillBillMoney;
 import org.killbill.billing.util.api.CustomFieldApiException;
 import org.killbill.billing.util.callcontext.CallContext;
@@ -56,7 +52,6 @@ import com.gocardless.resources.Payment;
 import com.gocardless.resources.RedirectFlow;
 import com.gocardless.services.RedirectFlowService.RedirectFlowCreateRequest.PrefilledCustomer;
 import com.google.common.collect.ImmutableList;
-import com.google.gson.annotations.SerializedName;
 
 import org.killbill.billing.plugin.api.core.PluginCustomField;
 import org.killbill.billing.ObjectType;
@@ -112,7 +107,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 				com.gocardless.services.PaymentService.PaymentCreateRequest.Currency goCardlessCurrency = convertKillBillCurrencyToGoCardlessCurrency(
 						currency);
 				Payment payment = client.payments().create()
-						.withAmount(Math.toIntExact(KillBillMoney.toMinorUnits(currency.toString(), amount)))
+						.withAmount(Math.toIntExact(KillBillMoney.toMinorUnits(currency.toString(), amount))) //convert to minor unit since Gocardless requires the amount to be specified in the lowet denomination of the currency
 						.withCurrency(goCardlessCurrency).withLinksMandate(mandate).withIdempotencyKey(idempotencyKey)
 						.withMetadata("kbPaymentId", kbPaymentId.toString()).withMetadata("kbTransactionId", kbTransactionId.toString()) //added for getPaymentInfo
 						.execute();
@@ -136,6 +131,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 					TransactionType.PURCHASE, amount, currency, PaymentPluginStatus.CANCELED, null, 
 					null, null, null, new DateTime(), null, null);
 		}
+		logger.info("Returning paymentTransactionInfoPlugin={}",paymentTransactionInfoPlugin);
 		return paymentTransactionInfoPlugin;
 	}
 
@@ -257,7 +253,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 
 	public List<PaymentTransactionInfoPlugin> getPaymentInfo(UUID kbAccountId, UUID kbPaymentId,
 			Iterable<PluginProperty> properties, TenantContext context) throws PaymentPluginApiException {
-		
+		logger.info("getPaymentInfo, kbAccountId={}", kbAccountId);
 		List<PaymentTransactionInfoPlugin> paymentTransactionInfoPluginList = new ArrayList<>();
 		String mandateId = getMandateId(kbAccountId, context) ;
 		Mandate mandate = client.mandates().get(mandateId).execute(); //get GoCardless Mandate object
@@ -277,7 +273,8 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 				outputProperties.add(new PluginProperty("customerId",customerId,false));  //arbitrary data to be returned to the caller
 				outputProperties.add(new PluginProperty("gocardlessstatus",payment.getStatus(),false)); //arbitrary data to be returned to the caller
 				GoCardlessPaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
-						kbPaymentId, kbTransactionPaymentId, TransactionType.PURCHASE, new BigDecimal(payment.getAmount()), killBillCurrency,
+						kbPaymentId, kbTransactionPaymentId, TransactionType.PURCHASE, // In a real-world plugin, set to the appropriate TransactionType
+						new BigDecimal(payment.getAmount()), killBillCurrency, //TODO, There is a bug here, payment.getAmount() returns the amount in minor units, this needs to be converted
 						status, null, null, String.valueOf(payment.getId()), null, new DateTime(),
 						new DateTime(payment.getCreatedAt()), outputProperties); 
 				logger.info("Created paymentTransactionInfoPlugin {}",paymentTransactionInfoPlugin);
@@ -413,6 +410,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 
 		PluginHostedPaymentPageFormDescriptor pluginHostedPaymentPageFormDescriptor = new PluginHostedPaymentPageFormDescriptor(
 				kbAccountId, redirectFlow.getRedirectUrl());
+		logger.info("Returning PluginHostedPaymentPageFormDescriptor {}", pluginHostedPaymentPageFormDescriptor);
 		return pluginHostedPaymentPageFormDescriptor;
 	}
 
