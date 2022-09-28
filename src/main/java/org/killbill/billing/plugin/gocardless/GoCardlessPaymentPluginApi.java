@@ -274,7 +274,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 				outputProperties.add(new PluginProperty("gocardlessstatus",payment.getStatus(),false)); //arbitrary data to be returned to the caller
 				GoCardlessPaymentTransactionInfoPlugin paymentTransactionInfoPlugin = new GoCardlessPaymentTransactionInfoPlugin(
 						kbPaymentId, kbTransactionPaymentId, TransactionType.PURCHASE, // In a real-world plugin, set to the appropriate TransactionType
-						new BigDecimal(payment.getAmount()), killBillCurrency, //TODO, There is a bug here, payment.getAmount() returns the amount in minor units, this needs to be converted
+						KillBillMoney.fromMinorUnits(String.valueOf(killBillCurrency), Long.valueOf(payment.getAmount())), killBillCurrency,
 						status, null, null, String.valueOf(payment.getId()), null, new DateTime(),
 						new DateTime(payment.getCreatedAt()), outputProperties); 
 				logger.info("Created paymentTransactionInfoPlugin {}",paymentTransactionInfoPlugin);
@@ -284,6 +284,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 		
 		return paymentTransactionInfoPluginList;
 	}
+
 
 	/**
 	 * Converts GoCardless status to Kill Bill status
