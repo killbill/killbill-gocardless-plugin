@@ -68,6 +68,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	public GoCardlessPaymentPluginApi(final OSGIKillbillAPI killbillAPI, final Clock clock) {
 		this.killbillAPI = killbillAPI;
 		this.clock = clock;
+		logger.info("GC_ACCESS_TOKEN: {}", System.getenv(GC_ACCESS_TOKEN_PROPERTY));
 		client = GoCardlessClient.newBuilder(System.getenv(GC_ACCESS_TOKEN_PROPERTY))
 				.withEnvironment(GoCardlessClient.Environment.SANDBOX).build();
 	}
