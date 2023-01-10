@@ -57,15 +57,15 @@ import org.killbill.billing.plugin.api.core.PluginCustomField;
 import org.killbill.billing.ObjectType;
 
 public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
-
 	private static final Logger logger = LoggerFactory.getLogger(GoCardlessPaymentPluginApi.class);
-	private OSGIKillbillAPI killbillAPI;
-	private Clock clock;
-	private static String GC_ACCESS_TOKEN_PROPERTY = "GC_ACCESS_TOKEN";
-
-	private GoCardlessClient client;
+	private static final String GC_ACCESS_TOKEN_PROPERTY = "GC_ACCESS_TOKEN";
+	private final OSGIKillbillAPI killbillAPI;
+	private final Clock clock;
+	private final GoCardlessClient client;
 
 	public GoCardlessPaymentPluginApi(final OSGIKillbillAPI killbillAPI, final Clock clock) {
+		logger.info("GC_ACCESS_TOKEN: {}", System.getenv(GC_ACCESS_TOKEN_PROPERTY));
+
 		this.killbillAPI = killbillAPI;
 		this.clock = clock;
 		client = GoCardlessClient.newBuilder(System.getenv(GC_ACCESS_TOKEN_PROPERTY))
