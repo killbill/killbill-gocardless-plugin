@@ -58,18 +58,14 @@ import org.killbill.billing.ObjectType;
 
 public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	private static final Logger logger = LoggerFactory.getLogger(GoCardlessPaymentPluginApi.class);
-	private static final String GC_ACCESS_TOKEN_PROPERTY = "GC_ACCESS_TOKEN";
 	private final OSGIKillbillAPI killbillAPI;
 	private final Clock clock;
-	private final GoCardlessClient client;
+	private final GoCardlessConfigurationHandler goCardlessConfigurationHandler;
 
-	public GoCardlessPaymentPluginApi(final OSGIKillbillAPI killbillAPI, final Clock clock) {
-		logger.info("GC_ACCESS_TOKEN: {}", System.getenv(GC_ACCESS_TOKEN_PROPERTY));
-
+	public GoCardlessPaymentPluginApi(final GoCardlessConfigurationHandler goCardlessConfigurationHandler, final OSGIKillbillAPI killbillAPI, final Clock clock) {
+		this.goCardlessConfigurationHandler = goCardlessConfigurationHandler;
 		this.killbillAPI = killbillAPI;
 		this.clock = clock;
-		client = GoCardlessClient.newBuilder(System.getenv(GC_ACCESS_TOKEN_PROPERTY))
-				.withEnvironment(GoCardlessClient.Environment.SANDBOX).build();
 	}
 
 	@Override
@@ -106,7 +102,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 				String idempotencyKey = PluginProperties.findPluginPropertyValue("idempotencykey", properties);
 				com.gocardless.services.PaymentService.PaymentCreateRequest.Currency goCardlessCurrency = convertKillBillCurrencyToGoCardlessCurrency(
 						currency);
-				Payment payment = client.payments().create()
+				Payment payment = buildGoCardlessClient(context).payments().create()
 						.withAmount(Math.toIntExact(KillBillMoney.toMinorUnits(currency.toString(), amount))) //convert to minor unit since Gocardless requires the amount to be specified in the lowet denomination of the currency
 						.withCurrency(goCardlessCurrency).withLinksMandate(mandate).withIdempotencyKey(idempotencyKey)
 						.withMetadata("kbPaymentId", kbPaymentId.toString()).withMetadata("kbTransactionId", kbTransactionId.toString()) //added for getPaymentInfo
@@ -256,6 +252,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 		logger.info("getPaymentInfo, kbAccountId={}", kbAccountId);
 		List<PaymentTransactionInfoPlugin> paymentTransactionInfoPluginList = new ArrayList<>();
 		String mandateId = getMandateId(kbAccountId, context) ;
+		final GoCardlessClient client = buildGoCardlessClient(context);
 		Mandate mandate = client.mandates().get(mandateId).execute(); //get GoCardless Mandate object
 		String customerId = mandate.getLinks().getCustomer(); //retrieve customer id from mandate
 		
@@ -332,7 +329,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 
 		try {
 			// Use the redirect flow id to "complete" the GoCardless flow
-			RedirectFlow redirectFlow = client.redirectFlows().complete(redirectFlowId).withSessionToken(sessionToken)
+			RedirectFlow redirectFlow = buildGoCardlessClient(context).redirectFlows().complete(redirectFlowId).withSessionToken(sessionToken)
 					.execute();
 
 			String mandateId = redirectFlow.getLinks().getMandate(); // obtain mandate id from the redirect flow
@@ -403,7 +400,7 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 
 		PrefilledCustomer customer = buildCustomer(customFields);// build a PrefilledCuctomer object from custom fields if present
 
-		RedirectFlow redirectFlow = client.redirectFlows().create().withDescription(redirectFlowDescription)
+		RedirectFlow redirectFlow = buildGoCardlessClient(context).redirectFlows().create().withDescription(redirectFlowDescription)
 				.withSessionToken(sessionToken).withSuccessRedirectUrl(successRedirectUrl)
 				.withPrefilledCustomer(customer).execute();
 		logger.info("RedirectFlow Id=" + redirectFlow.getId());
@@ -432,6 +429,19 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	public GatewayNotification processNotification(String notification, Iterable<PluginProperty> properties,
 			CallContext context) throws PaymentPluginApiException {
 		throw new PaymentPluginApiException("INTERNAL", "#processNotification not yet implemented, please contact support@killbill.io");
+	}
+	
+	private GoCardlessClient buildGoCardlessClient(final TenantContext tenantContext) {
+		final GoCardlessConfigProperties config = goCardlessConfigurationHandler.getConfigurable(tenantContext.getTenantId());
+	    if (config == null || config.getGCAccessToken() == null || config.getGCAccessToken().isEmpty()) {
+	    	logger.warn("Per-tenant properties not configured");
+	        return null;
+	    }
+	    final GoCardlessClient.Environment environment = config.getEnvironment().equalsIgnoreCase("live") ? GoCardlessClient.Environment.LIVE : GoCardlessClient.Environment.SANDBOX;
+	    final GoCardlessClient client = GoCardlessClient.newBuilder(config.getGCAccessToken())
+		.withEnvironment(environment).build();
+
+	    return client;
 	}
 
 }

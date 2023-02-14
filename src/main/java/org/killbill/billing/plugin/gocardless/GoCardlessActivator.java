@@ -18,6 +18,7 @@ package org.killbill.billing.plugin.gocardless;
 import org.killbill.billing.osgi.api.OSGIPluginProperties;
 import org.killbill.billing.osgi.libs.killbill.KillbillActivatorBase;
 import org.killbill.billing.payment.plugin.api.PaymentPluginApi;
+import org.killbill.billing.plugin.core.config.PluginEnvironmentConfig;
 import org.killbill.billing.plugin.core.resources.jooby.PluginApp;
 import org.killbill.billing.plugin.core.resources.jooby.PluginAppBuilder;
 import org.osgi.framework.BundleContext;
@@ -26,15 +27,25 @@ import javax.servlet.Servlet;
 import javax.servlet.http.HttpServlet;
 import java.util.Hashtable;
 
-public class GoCardlessActivator extends KillbillActivatorBase{
+public class GoCardlessActivator extends KillbillActivatorBase {
 	
 	//This is the plugin name and is used by Kill Bill to route payment to the appropriate payment plugin
 	public static final String PLUGIN_NAME = "killbill-gocardless"; 
+	
+	private GoCardlessConfigurationHandler goCardlessConfigurationHandler;
 
 	@Override
     public void start(final BundleContext context) throws Exception {
         super.start(context);
-        final GoCardlessPaymentPluginApi pluginApi = new GoCardlessPaymentPluginApi(killbillAPI,clock.getClock());
+        final String region = PluginEnvironmentConfig.getRegion(configProperties.getProperties());
+        goCardlessConfigurationHandler = new GoCardlessConfigurationHandler(region, PLUGIN_NAME, killbillAPI);
+        
+        //set default config properties
+        final GoCardlessConfigProperties globalConfiguration = goCardlessConfigurationHandler
+				.createConfigurable(configProperties.getProperties());
+        goCardlessConfigurationHandler.setDefaultConfigurable(globalConfiguration);        
+        
+        final GoCardlessPaymentPluginApi pluginApi = new GoCardlessPaymentPluginApi(goCardlessConfigurationHandler,killbillAPI,clock.getClock());
         registerPaymentPluginApi(context, pluginApi);
 
         // Register the servlet, which is used as the entry point to generate the Hosted Payment Pages redirect url
