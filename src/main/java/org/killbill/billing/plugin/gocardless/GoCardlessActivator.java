@@ -15,6 +15,7 @@
  */
 package org.killbill.billing.plugin.gocardless;
 
+import org.killbill.billing.osgi.api.Healthcheck;
 import org.killbill.billing.osgi.api.OSGIPluginProperties;
 import org.killbill.billing.osgi.libs.killbill.KillbillActivatorBase;
 import org.killbill.billing.payment.plugin.api.PaymentPluginApi;
@@ -47,10 +48,15 @@ public class GoCardlessActivator extends KillbillActivatorBase {
         
         final GoCardlessPaymentPluginApi pluginApi = new GoCardlessPaymentPluginApi(goCardlessConfigurationHandler,killbillAPI,clock.getClock());
         registerPaymentPluginApi(context, pluginApi);
+        
+		// Expose a healthcheck, so other plugins can check on the plugin status
+		final Healthcheck healthcheck = new GoCardlessHealthCheck(goCardlessConfigurationHandler);
+		registerHealthcheck(context, healthcheck);        
 
         // Register the servlet, which is used as the entry point to generate the Hosted Payment Pages redirect url
         final PluginApp pluginApp = new PluginAppBuilder(PLUGIN_NAME, killbillAPI, dataSource, super.clock, configProperties)
                 .withRouteClass(GoCardlessCheckoutServlet.class)
+                .withRouteClass(GoCardlessHealthCheckServlet.class).withService(healthcheck)
                 .withService(pluginApi)
                 .withService(clock)
                 .build();
@@ -63,6 +69,12 @@ public class GoCardlessActivator extends KillbillActivatorBase {
         props.put(OSGIPluginProperties.PLUGIN_NAME_PROP, PLUGIN_NAME);
         registrar.registerService(context, PaymentPluginApi.class, api, props);
     }
+    
+	private void registerHealthcheck(final BundleContext context, final Healthcheck healthcheck) {
+		final Hashtable<String, String> props = new Hashtable<>();
+		props.put(OSGIPluginProperties.PLUGIN_NAME_PROP, PLUGIN_NAME);
+		registrar.registerService(context, Healthcheck.class, healthcheck, props);
+	}    
 
     private void registerServlet(final BundleContext context, final HttpServlet servlet) {
         final Hashtable<String, String> props = new Hashtable<String, String>();
