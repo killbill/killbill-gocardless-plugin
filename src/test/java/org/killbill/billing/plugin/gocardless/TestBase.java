@@ -83,8 +83,8 @@ public class TestBase {
             properties = TestUtils.loadProperties(PROPERTIES_FILE_NAME);
         } catch (final RuntimeException ignored) {
             // Look up environment variables instead
-            properties.put("org.killbill.billing.plugin.gocardless.gocardlesstoken", System.getenv("GOCARDLESS_ACCESS_TOKEN_KEY"));
-            properties.put("org.killbill.billing.plugin.gocardless.environment", System.getenv("GOCARDLESS_ENVIRONMENT_KEY"));
+            properties.put("org.killbill.billing.plugin.gocardless.gocardlesstoken", System.getenv("GOCARDLESS_ACCESS_TOKEN"));
+            properties.put("org.killbill.billing.plugin.gocardless.environment", System.getenv("GOCARDLESS_ENVIRONMENT"));
         }
         final GoCardlessConfigProperties goCardlessConfigProperties = new GoCardlessConfigProperties(properties, "");
         goCardlessconfigurationHandler.setDefaultConfigurable(goCardlessConfigProperties);
