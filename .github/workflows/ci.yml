@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  - push
+  - pull_request
+  - workflow_dispatch
+
+jobs:
+  ci:
+    uses: killbill/gh-actions-shared/.github/workflows/ci.yml@main
+    with:
+      test-profile-matrix: '[ "travis", "integration-mysql", "integration-postgresql" ]'
+    secrets:
+      extra-env: '{ "GOCARDLESS_ACCESS_TOKEN": "${{ secrets.GOCARDLESS_ACCESS_TOKEN }}", "GOCARDLESS_ENVIRONMENT": "${{ secrets.GOCARDLESS_ENVIRONMENT }}"}'
+
+  integration_test:
+    uses: killbill/gh-actions-shared/.github/workflows/integration_test.yml@main
+    with:
+      plugin_name: 'gocardless'
+      integration_tests_goal: 'test:plugins:gocardless'
+    secrets:
+      extra-env: '{ "GOCARDLESS_ACCESS_TOKEN": "${{ secrets.GOCARDLESS_ACCESS_TOKEN }}", "GOCARDLESS_ENVIRONMENT": "${{ secrets.GOCARDLESS_ENVIRONMENT }}"}'
