@@ -31,7 +31,7 @@ import com.google.common.collect.ImmutableList;
 
 public class TestGoCardlessPaymentPluginApi extends TestBase {
 	
-	   @Test(groups = "slow")
+	   @Test(groups = "integration")
 	    public void testHPP() throws PaymentPluginApiException {
 	        final UUID kbAccountId = account.getId();
 	        final ImmutableList<PluginProperty> properties = ImmutableList.of(
