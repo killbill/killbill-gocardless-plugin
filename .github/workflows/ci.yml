@@ -7,7 +7,7 @@ on:
 
 jobs:
   ci:
-    uses: killbill/gh-actions-shared/.github/workflows/ci.yml@trigger-ci-for-PR
+    uses: killbill/gh-actions-shared/.github/workflows/ci.yml@main
     with:
       test-profile-matrix: '[ "travis", "integration-mysql", "integration-postgresql" ]'
     secrets:
