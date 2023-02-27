@@ -1,5 +1,14 @@
 # killbill-gocardless-plugin
-GoCardless Payment Plugin
+![Maven Central](https://img.shields.io/maven-central/v/org.kill-bill.billing.plugin.java/gocardless-plugin?color=blue&label=Maven%20Central)
+
+Kill Bill payment plugin that uses [Gocardless](https://gocardless.com/) as the payment gateway.
+
+## Kill Bill compatibility
+
+| Plugin version | Kill Bill version |
+|---------------:|------------------:|
+|          1.x.y |            0.24.z |
+
 
 ## Build
 
