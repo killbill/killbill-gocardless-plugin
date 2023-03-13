@@ -50,7 +50,7 @@
         <dependency>
             <groupId>com.gocardless</groupId>
             <artifactId>gocardless-pro</artifactId>
-            <version>3.10.0</version>
+            <version>5.14.2</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
