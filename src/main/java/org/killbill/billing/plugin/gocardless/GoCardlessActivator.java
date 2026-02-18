@@ -56,6 +56,8 @@ public class GoCardlessActivator extends KillbillActivatorBase {
         // Register the servlet, which is used as the entry point to generate the Hosted Payment Pages redirect url
         final PluginApp pluginApp = new PluginAppBuilder(PLUGIN_NAME, killbillAPI, dataSource, super.clock, configProperties)
                 .withRouteClass(GoCardlessCheckoutServlet.class)
+                .withRouteClass(GoCardlessInstantCheckoutServlet.class)
+                .withRouteClass(GoCardlessInstantCompleteServlet.class)
                 .withRouteClass(GoCardlessHealthCheckServlet.class).withService(healthcheck)
                 .withService(pluginApi)
                 .withService(clock)

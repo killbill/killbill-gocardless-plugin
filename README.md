@@ -3,6 +3,11 @@
 
 Kill Bill payment plugin that uses [Gocardless](https://gocardless.com/) as the payment gateway.
 
+The plugin supports two payment flows:
+
+- **Direct Debit (mandate)** – Customer sets up a mandate via a redirect flow; payments are then taken on that mandate (typically 3–5 working days to settle).
+- **Instant Bank Pay (IBP)** – One-off instant payments via [GoCardless Billing Requests](https://developer.gocardless.com/billing-requests/taking-an-instant-bank-payment). Funds are confirmed within minutes (UK Faster Payments, SEPA Instant, etc.).
+
 ## Kill Bill compatibility
 
 | Plugin version | Kill Bill version |
@@ -171,3 +176,79 @@ curl -v \
      -H "X-Killbill-ApiSecret: lazar" \
     'http://127.0.0.1:8080/1.0/kb/payments/<PAYMENT_ID>?withPluginInfo=false'
 ```
+
+## Instant Bank Pay (IBP)
+
+Instant Bank Pay uses GoCardless Billing Requests for one-off instant payments (no mandate). The customer is redirected to authorise the payment with their bank; funds are confirmed within minutes.
+
+**Flow:**
+
+1. **Create a payment in Kill Bill** (e.g. for an invoice) so you have `kbPaymentId` and `kbTransactionId`.
+2. **Start an instant checkout** – POST to the plugin with account, amount, currency, payment IDs, and a success redirect URL. The plugin creates a Billing Request and Billing Request Flow and returns a URL.
+3. **Redirect the customer** to that URL. They complete the flow (select bank, authorise).
+4. **On success**, GoCardless redirects to your `success_redirect_url`. Your page should call the plugin **complete** endpoint with the `billing_request_id` (from the redirect query string). The plugin fulfils the Billing Request and stores the GoCardless payment ID so Kill Bill can resolve it via `getPaymentInfo`.
+5. **Kill Bill** can then fetch payment status with `GET /1.0/kb/payments/<PAYMENT_ID>?withPluginInfo=true` as usual.
+
+### Create instant checkout (step 2)
+
+```
+curl -v -X POST \
+     -u admin:password \
+     -H "X-Killbill-ApiKey: bob" \
+     -H "X-Killbill-ApiSecret: lazar" \
+     -H "X-Killbill-CreatedBy: tutorial" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "kbAccountId": "<ACCOUNT_ID>",
+       "amount": "25.00",
+       "currency": "GBP",
+       "kbPaymentId": "<KB_PAYMENT_ID>",
+       "kbTransactionId": "<KB_TRANSACTION_ID>",
+       "success_redirect_url": "https://your-app.com/payment/success",
+       "description": "Order #12345"
+     }' \
+     'http://127.0.0.1:8080/plugins/killbill-gocardless/checkout/instant'
+```
+
+Response (201):
+
+```json
+{
+  "formUrl": "https://pay-sandbox.gocardless.com/...",
+  "formMethod": "GET",
+  "billingRequestId": "BRQ...",
+  "kbAccountId": "...",
+  "kbPaymentId": "...",
+  "kbTransactionId": "..."
+}
+```
+
+Redirect the customer to `formUrl`.
+
+### Complete instant payment (step 4)
+
+When the customer returns to your `success_redirect_url`, GoCardless appends a query parameter such as `billing_request_id=BRQ...`. Your server or front end should call:
+
+```
+curl -v -X GET \
+     -u admin:password \
+     -H "X-Killbill-ApiKey: bob" \
+     -H "X-Killbill-ApiSecret: lazar" \
+     'http://127.0.0.1:8080/plugins/killbill-gocardless/instant/complete?billing_request_id=<BILLING_REQUEST_ID>'
+```
+
+Or POST with the same query parameter. Response (200):
+
+```json
+{
+  "success": true,
+  "billingRequestId": "BRQ...",
+  "paymentId": "PM...",
+  "kbAccountId": "...",
+  "kbPaymentId": "..."
+}
+```
+
+After this, Kill Bill’s `getPaymentInfo` (and thus `GET /1.0/kb/payments/<PAYMENT_ID>?withPluginInfo=true`) will return the instant payment status.
+
+**Note:** IBP is supported for one-off payments in regions/schemes supported by GoCardless (e.g. UK Faster Payments, SEPA Instant). See [GoCardless Instant Bank Pay](https://developer.gocardless.com/billing-requests/taking-an-instant-bank-payment) for details.
