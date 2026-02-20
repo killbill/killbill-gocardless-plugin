@@ -296,13 +296,11 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 
 		Iterable<Payment> payments = client.payments().all().withCustomer(customerId).execute();
 		for (Payment payment : payments) {
-			String kbPaymentIdFromPayment = payment.getMetadata() != null && payment.getMetadata().get("kbPaymentId") != null
-					? String.valueOf(payment.getMetadata().get("kbPaymentId")) : null;
+			String kbPaymentIdFromPayment = payment.getMetadata() != null ? payment.getMetadata().get("kbPaymentId") : null;
 			if (kbPaymentIdFromPayment != null && kbPaymentId.toString().equals(kbPaymentIdFromPayment)) {
 				Currency killBillCurrency = convertGoCardlessCurrencyToKillBillCurrency(payment.getCurrency());
 				PaymentPluginStatus status = convertGoCardlessToKillBillStatus(payment.getStatus());
-				String kbTransactionPaymentIdStr = payment.getMetadata() != null && payment.getMetadata().get("kbTransactionId") != null
-						? String.valueOf(payment.getMetadata().get("kbTransactionId")) : null;
+				String kbTransactionPaymentIdStr = payment.getMetadata() != null ? payment.getMetadata().get("kbTransactionId") : null;
 				UUID kbTransactionPaymentId = kbTransactionPaymentIdStr != null ? UUID.fromString(kbTransactionPaymentIdStr) : null;
 				List<PluginProperty> outputProperties = new ArrayList<>();
 				outputProperties.add(new PluginProperty("mandateId", mandateId, false));
@@ -342,14 +340,14 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 			CallContext context) throws PaymentPluginApiException {
 		GoCardlessClient client = buildGoCardlessClient(context);
 		if (client == null) {
-			throw new PaymentPluginApiException("INTERNAL", "GoCardless client not configured for tenant");
+			throw new PaymentPluginApiException("GoCardless client not configured for tenant");
 		}
 		try {
 			return GoCardlessInstantBankPay.createInstantCheckout(client, amount, currency, kbAccountId, kbPaymentId,
 					kbTransactionId, description, successRedirectUrl);
 		} catch (GoCardlessApiException e) {
 			logger.warn("GoCardless API error creating instant checkout", e);
-			throw new PaymentPluginApiException("INTERNAL", "GoCardless error: " + e.getMessage());
+			throw new PaymentPluginApiException("GoCardless error: " + e.getMessage(), e);
 		}
 	}
 
@@ -360,26 +358,27 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 	public Map<String, Object> fulfilInstantCheckoutAndStore(String billingRequestId, CallContext context) throws PaymentPluginApiException {
 		GoCardlessClient client = buildGoCardlessClient(context);
 		if (client == null) {
-			throw new PaymentPluginApiException("INTERNAL", "GoCardless client not configured for tenant");
+			throw new PaymentPluginApiException("GoCardless client not configured for tenant");
 		}
 		try {
 			BillingRequest br = client.billingRequests().get(billingRequestId).execute();
 			@SuppressWarnings("unchecked")
-			Map<String, Object> meta = br.getMetadata() != null ? (Map<String, Object>) br.getMetadata() : null;
+			Map<String, String> meta = br.getMetadata() != null ? (Map<String, String>) br.getMetadata() : null;
 			if (meta == null) {
-				throw new PaymentPluginApiException("INTERNAL", "Billing Request has no metadata (kbAccountId, kbPaymentId)");
+				throw new PaymentPluginApiException("Billing Request has no metadata (kbAccountId, kbPaymentId)");
 			}
-			String kbAccountIdStr = meta.get("kbAccountId") != null ? String.valueOf(meta.get("kbAccountId")) : null;
-			String kbPaymentIdStr = meta.get("kbPaymentId") != null ? String.valueOf(meta.get("kbPaymentId")) : null;
+			String kbAccountIdStr = meta.get("kbAccountId");
+			String kbPaymentIdStr = meta.get("kbPaymentId");
 			if (kbAccountIdStr == null || kbPaymentIdStr == null) {
-				throw new PaymentPluginApiException("INTERNAL", "Billing Request metadata missing kbAccountId or kbPaymentId");
+				throw new PaymentPluginApiException("Billing Request metadata missing kbAccountId or kbPaymentId");
+			}
 			}
 			UUID kbAccountId = UUID.fromString(kbAccountIdStr);
 			UUID kbPaymentId = UUID.fromString(kbPaymentIdStr);
 
 			String paymentId = GoCardlessInstantBankPay.fulfilBillingRequest(client, billingRequestId);
 			if (paymentId == null) {
-				throw new PaymentPluginApiException("INTERNAL", "Fulfil did not return a payment ID");
+				throw new PaymentPluginApiException("Fulfil did not return a payment ID");
 			}
 
 			String fieldName = CUSTOM_FIELD_IBP_PAYMENT_PREFIX + kbPaymentId.toString();
@@ -396,10 +395,10 @@ public class GoCardlessPaymentPluginApi implements PaymentPluginApi {
 			return result;
 		} catch (GoCardlessApiException e) {
 			logger.warn("GoCardless error fulfilling Billing Request", e);
-			throw new PaymentPluginApiException("INTERNAL", "GoCardless error: " + e.getMessage());
+			throw new PaymentPluginApiException("GoCardless error: " + e.getMessage(), e);
 		} catch (CustomFieldApiException e) {
 			logger.warn("Failed to store IBP payment custom field", e);
-			throw new PaymentPluginApiException("INTERNAL", "Failed to store payment reference");
+			throw new PaymentPluginApiException("Failed to store payment reference", e);
 		}
 	}
 

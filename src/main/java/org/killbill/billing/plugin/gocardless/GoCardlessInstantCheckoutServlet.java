@@ -80,15 +80,14 @@ public class GoCardlessInstantCheckoutServlet {
             Map<String, Object> errBody = new HashMap<>();
             errBody.put("error", "Missing required parameters: kbAccountId, amount, currency, kbPaymentId, kbTransactionId, success_redirect_url");
             return Results.with(errBody, Status.BAD_REQUEST).type(MediaType.json);
-        }
 
         Currency currency;
         try {
             currency = Currency.valueOf(currencyCode);
         } catch (IllegalArgumentException e) {
-            Map<String, Object> errBody = new HashMap<>();
-            errBody.put("error", "Invalid currency: " + currencyCode);
-            return Results.with(errBody, Status.BAD_REQUEST).type(MediaType.json);
+Map<String, Object> errBody = new HashMap<>();
+errBody.put("error", "Invalid currency: " + currencyCode);
+return Results.with(errBody, Status.BAD_REQUEST).type(MediaType.json);
         }
 
         CallContext context = new PluginCallContext(GoCardlessActivator.PLUGIN_NAME, clock.getClock().getUTCNow(), kbAccountId, tenant.getId());

@@ -79,9 +79,9 @@ public class GoCardlessInstantCompleteServlet {
         logger.info("instant/complete: billing_request_id={}", billingRequestId);
 
         if (billingRequestId == null || billingRequestId.isEmpty()) {
-            Map<String, Object> errBody = new HashMap<>();
-            errBody.put("error", "Missing billing_request_id");
-            return Results.with(errBody, Status.BAD_REQUEST).type(MediaType.json);
+Map<String, Object> errBody = new HashMap<>();
+errBody.put("error", "Missing billing_request_id");
+return Results.with(errBody, Status.BAD_REQUEST).type(MediaType.json);
         }
 
         CallContext context = new PluginCallContext(GoCardlessActivator.PLUGIN_NAME, clock.getClock().getUTCNow(),
