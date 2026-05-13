@@ -8,6 +8,7 @@ Kill Bill payment plugin that uses [Gocardless](https://gocardless.com/) as the 
 | Plugin version | Kill Bill version |
 |---------------:|------------------:|
 |          1.x.y |            0.24.z |
+|          2.x.y |            0.26.z |
 
 
 ## Build
