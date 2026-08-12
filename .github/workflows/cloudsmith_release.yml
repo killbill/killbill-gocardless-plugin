@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Compute short sha1
         run: echo "GITHUB_SHA_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Setup git user
@@ -24,14 +24,16 @@ jobs:
           git config --global user.name "Kill Bill core team"
           git config --global url."https://${BUILD_USER}:${BUILD_TOKEN}@github.com/".insteadOf "git@github.com:"
       - name: Configure Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
-          java-version: 8
+          java-version: 21
+          distribution: temurin
       - name: Configure Sonatype mirror
-        uses: s4u/maven-settings-action@v2.3.0
-        # Go to Sonatype directly to avoid delay syncs (could get rid of this if actions/setup-java were to support mirrors).
+        uses: s4u/maven-settings-action@v4.0.0
+        # Resolve release dependencies from Central and snapshot killbill-oss-parent builds from Sonatype.
         with:
-          mirrors: '[{"id": "oss-releases", "name": "Sonatype releases", "mirrorOf": "*", "url": "https://oss.sonatype.org/content/repositories/releases/"}]'
+          sonatypeSnapshots: true
+          githubServer: false
       - name: Update maven version
         run: |
           plugin_version=$(mvn ${MAVEN_FLAGS} help:evaluate -Dexpression=project.version -q -DforceStdout | cut -d - -f 1)
@@ -40,9 +42,10 @@ jobs:
         run: |
           mvn ${MAVEN_FLAGS} clean install -DskipTests=true -Dgpg.skip=true -Dcheck.skip-rat=true -Dcheck.skip-spotbugs=true
       - name: Configure settings.xml for release
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
-          java-version: 8
+          java-version: 21
+          distribution: temurin
           server-id: ${{ secrets.CLOUDSMITH_REPO }}
           server-username: CLOUDSMITH_USER
           server-password: CLOUDSMITH_API_KEY
@@ -57,7 +60,7 @@ jobs:
         run: |
           GROUP_ID=org.kill-bill.billing.plugin.java
           VERSION=$(mvn ${MAVEN_FLAGS} help:evaluate -Dexpression=project.version -q -DforceStdout)
-          FILE=avatax-plugin-$VERSION.jar
+          FILE=gocardless-plugin-$VERSION.jar
           # Make sure the current pom.xml file isn't uploaded
           cp ./target/$FILE /var/tmp/
           cd /var/tmp
@@ -65,7 +68,7 @@ jobs:
                                                 -DrepositoryId=$CLOUDSMITH_REPO \
                                                 -Durl=https://maven.cloudsmith.io/killbill/$CLOUDSMITH_REPO \
                                                 -DgroupId=$GROUP_ID \
-                                                -DartifactId=avatax-plugin \
+                                                -DartifactId=gocardless-plugin \
                                                 -Dversion=$VERSION \
                                                 -Dpackaging=jar \
                                                 -DgeneratePom=true \
