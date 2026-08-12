@@ -10,6 +10,7 @@ Kill Bill payment plugin that uses [Gocardless](https://gocardless.com/) as the 
 |          1.x.y |            0.24.z |
 |          2.x.y |            0.26.z |
 
+Version `2.x.y` mark of removal Java EE `javax` namespace and use `jakarta` namespace instead.
 
 ## Build
 
